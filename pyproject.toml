@@ -20,3 +20,5 @@ dependencies = [
   "pandas",
 ]
 [project.urls]
+Homepage=https://github.com/teshaw/ranger_ops
+Issues=https://github.com/teshaw/ranger_ops/issues
