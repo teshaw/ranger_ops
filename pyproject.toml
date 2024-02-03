@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "range_ops"
+version = "0.0.1"
+authors = [
+  { name="Tom Shaw", email="tomshaw.work@gmail.com" },
+]
+description = "simplify combining and comparing contiguous ranges of int/floats"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "pandas",
+]
+[project.urls]
