@@ -98,7 +98,8 @@ class rangelist(list):
         '''underlying method for clipping range elements to remove duplicates'''
         UniqRange = rangelist()
         Overlaps = rangelist()
-        for r in inputRangeList:
+        iter_over_ranges = sorted(inputRangeList,key=self.__sort_key__)
+        for r in iter_over_ranges:
             for u in UniqRange:
                 r-=u
                 if not r.extent():
