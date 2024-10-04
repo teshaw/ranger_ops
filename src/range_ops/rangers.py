@@ -15,6 +15,10 @@ import pandas as pd
 ## classes
 class rangelist(list):
 
+    def __init__(self,*args,**kwargs):
+        self.__sort_key__ = None
+        super().__init__(*args,**kwargs)
+
     def extent(self):
         return sum((x.extent() for x in self))
 
