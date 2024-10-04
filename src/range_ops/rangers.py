@@ -86,6 +86,14 @@ class rangelist(list):
                 ungrouped.append(v)
         return rangelist(ungrouped)
 
+    def __group_attributes__(self):
+        regrouped = [r.__group_attributes__() for r in self]
+        return rangelist(regrouped)
+
+    def __ungroup_attributes__(self):
+        degrouped = [r.__ungroup_attributes__() for r in self]
+        return rangelist(degrouped)
+
     def unique(self):
         """remove duplicate range parts according to grouping"""
         #TODO: consider adding ignore grouping option?
@@ -93,6 +101,13 @@ class rangelist(list):
         for grp in GD:
             GD[grp] = self.__unique__(GD[grp])
         return self.__ungroup__(GD)
+
+
+    def duplicates(self):
+        '''excluded duplicate portions'''
+        U = self.unique().__group_attributes__()
+        S = self.__group_attributes__()
+        return (S - U).__ungroup_attributes__()
 
     def __unique__(self,inputRangeList,strict=False):
         '''underlying method for clipping range elements to remove duplicates'''
@@ -253,6 +268,20 @@ class intrange(object):
             return True
         else:
             raise NotImplementedError
+
+    def __group_attributes__(self):
+        ''''''
+        D = self._attributes
+        # assert "group" not in D
+        D['group'] = self._group
+        group = namedtuple("attributes",D.keys())(**D)
+        return type(self)(self._start,self._end,group=group)
+
+    def __ungroup_attributes__(self):
+        ''''''
+        D = dict(self._group._asdict())
+        group  = D.pop("group")
+        return type(self)(self._start,self._end,group=group,attributes=D)
 
     ## operator overloading
     def __lt__(self,other):
@@ -504,5 +533,18 @@ if __name__ == "__main__":
 
     R = rangelist((a,e))
     print("rangelist((a,e))",":",R)
+    ##
+    X1 = floatrange(0,8,group=("a",),attributes={'date':"2024-01-01"})
+    X2 = floatrange(6,14,group=("a",),attributes={'date':"2024-01-02"})
+    X3 = floatrange(7,15,group=("a",),attributes={'date':"2024-01-03"})
+    Y1 = floatrange(13,18,group=("b",),attributes={'date':"2024-01-05"})
 
+    XY = rangelist((X1,X2,X3,Y1))
+
+    print("XY list:")
+    print(*XY,sep="\n")
+    print("unique:")
+    print(*XY.unique(),sep="\n")
+    print("duplicates:")
+    print(*(repr(xy) for xy in XY.duplicates()),sep="\n")
 
