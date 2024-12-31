@@ -145,13 +145,13 @@ class rangelist(list):
 
     def merge(self):
         """consolidate adjacent/overlapping ranges."""
-        GD=self.groupdict()
-        for grp in GD:
-            GD[grp]=GD[grp].__merge__()
-        return self.__ungroup__(GD)
+        gd=self.groupdict()
+        for grp in gd:
+            gd[grp]=gd[grp].__merge__()
+        return self.__ungroup__(gd)
 
     def disect(self):
-        '''slice up ranges where portions overlap'''
+        """slice up ranges where portions overlap"""
         raise NotImplementedError("disect method not implemented")
 
     def to_dataframe(self):
