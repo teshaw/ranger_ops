@@ -26,7 +26,7 @@ class rangelist(list):
     #     for elem in self:
     #         yield(elem)
     def __mul__(self,other):
-        '''intersection of two rangelists'''
+        """intersection of two rangelists"""
         diff = self - other
         return self - diff
 
