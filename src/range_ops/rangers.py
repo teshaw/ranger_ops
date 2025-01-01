@@ -304,6 +304,25 @@ class intrange(object):
         o_key = other.__comparison_key__(self)
         return s_key >= o_key
 
+    def __eq__(self,other):
+        ''''''
+        def equate(d1,d2):
+            k1 = set(d1.keys())
+            k2 = set(d2.keys())
+            if len(k1) == len(k2) == len(k2.union(k1)):
+                return all(d1[k] == d2[k] for k in k1)
+            else:
+                return False
+
+        eq = ((self._start == other._start) and
+              (self._end == other._end) and
+              (self._closed == other._closed) and
+              (self._group == other._group) and
+              equate(self._attributes,other._attributes)
+              )
+
+        return eq
+
     def __sub__(self,other):
         '''difference of self from other'''
         if isinstance(other,(int,float)):
@@ -327,29 +346,30 @@ class intrange(object):
                         #create a closed intrange
                         if isinstance(self,floatrange):
                             new = floatrange(self._start,other._start,
-                                              step_size=self.step_size,
-                                              group=self._group,
-                                              attributes=self._attributes
+                                             step_size=self.step_size,
+                                             group=self._group,
+                                             attributes=self._attributes
                                              )
+                            result.append(new)
                         elif isinstance(self,intrange):
                             new = intrange(self._start,other._start-1,
                                             closed=True,
                                             group=self._group,
                                             attributes=self._attributes
                                             )
-
-                        result.append(new)
+                            result.append(new)
                 if ends_in:
                     # create a intrange,
                     # but consider that other might not be closed.
                     if not end_equal:
                         if isinstance(self,floatrange):
                             new = floatrange(other._end+other._closed,
-                                            self._end,
-                                            step_size=self.step_size,
-                                            group=self._group,
-                                            attributes=self._attributes
-                                            )
+                                             self._end,
+                                             step_size=self.step_size,
+                                             group=self._group,
+                                             attributes=self._attributes
+                                             )
+                            result.append(new)
                         elif isinstance(self,intrange):
                             new = intrange(other._end+other._closed,
                                             self._end,
@@ -357,7 +377,7 @@ class intrange(object):
                                             group=self._group,
                                             attributes=self._attributes
                                             )
-                        result.append(new)
+                            result.append(new)
                 return result
             else:
                 return rangelist((self,))
