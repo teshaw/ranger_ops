@@ -17,7 +17,22 @@ from uuid import uuid4,UUID
 class rangelist(list):
 
     def __init__(self,*args,**kwargs):
-        self.__sort_key__ = None
+        """
+        Initializes a rangelist object.
+
+        Args:
+            __sort_key__ : callable
+            The `__sort_key__` attribute is used to order ranges.
+            This allows preferred items to be used when clipping unique ranges.
+            a functional call is expected
+
+            other *args and **kwargs are passed to the super() list init method
+
+        """
+        if "__sort_key__" in kwargs:
+            self.__sort_key__ = kwargs.pop("__sort_key__")
+        else:
+            self.__sort_key__ = None
         super().__init__(*args,**kwargs)
 
     def extent(self):
