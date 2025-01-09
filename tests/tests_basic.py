@@ -57,6 +57,27 @@ class TestFloatRange(unittest.TestCase):
     # def test_add(self):
     #     pass
 
+    def test_duplicates(self):
+        """
+        Tests the duplicates method of the RangerList class.
+
+        Examples:
+            >>> A = floatrange(1, 10)
+            >>> B = floatrange(8, 15)
+            >>> C = floatrange(20, 22)
+            >>> R = rangelist((A, B, C))
+            >>> R.duplicates()
+            rangelist((floatrange(8.0, 10.0, group=(1,)),))
+        """
+
+        A=floatrange(1,10)
+        B=floatrange(8,15)
+        C=floatrange(20,22)
+        R=rangelist((A,B,C))
+        self.assertEqual(R.duplicates(),
+                         rangelist((floatrange(8.0,10.0,group=(1,)),)),
+                         msg=None)
+
 class TestRangeAdditions(unittest.TestCase):
 
     def test_addition(self):
