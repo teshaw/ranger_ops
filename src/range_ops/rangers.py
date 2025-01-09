@@ -75,6 +75,29 @@ class rangelist(list):
 
     @staticmethod
     def __ungroup__(groupdict):
+        """
+        Static method to ungroup a dictionary of ranges.
+
+        reverts the .groupdict() method result
+        intended for internal use 
+
+        Args:
+            groupdict: A dictionary containing ranges grouped by keys.
+
+        Returns:
+            rangelist: A new rangelist object containing all the ungrouped ranges.
+
+        Examples:
+            >>> R = rangelist()
+            >>> R.append(floatrange(1,10,group=(1,)))
+            >>> R.append(floatrange(8,15,group=(1,)))
+            >>> R.append(floatrange(3,13,group=(2,)))
+            >>> print("R",R)
+            >>> groupdict = R.groupdict()
+            >>> print(groupdict)
+            >>> result = rangelist.__ungroup__(groupdict)
+            >>> print(result)
+        """
         ungrouped=[]
         # used a plain list because we plan to overload __add__ in rangelist
         #TODO: check how += operator overloading compares with "+" op overload?
