@@ -1,5 +1,5 @@
-from collections import namedtuple, defaultdict
-import pandas as pd
+from collections import namedtuple
+
 
 ## decorators
 # def _allow_for(*args,types=(int,),**kwargs):
@@ -580,4 +580,5 @@ if __name__ == "__main__":
     R=rangelist.from_dataframe(df,"A","B",[],step_size=0.1)
     print(R)
     print(R.unique())
+
 
