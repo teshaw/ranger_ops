@@ -156,6 +156,12 @@ class rangelist(list):
     def to_dataframe(self):
         return pd.DataFrame((x._astuple() for x in self))
 
+    @staticmethod
+    def from_dataframe(df,start,end,groupby,step_size=0.1):
+        result = rangelist()
+        for rng,row in df.set_index([start,end]).iterrows():
+            result.append(floatrange(*rng,step_size,group=tuple(row[groupby])))
+        return result
 
 class intrange(object):
     """Closed range object of all integer values between min and max.
@@ -566,4 +572,12 @@ if __name__ == "__main__":
     print(*XY.unique(),sep="\n")
     print("duplicates:")
     print(*(repr(xy) for xy in XY.duplicates()),sep="\n")
+
+    import pandas as pd
+
+    df = pd.DataFrame.from_dict({'A':[1,2,3,4,5],'B':[10,10,10,10,10]})
+
+    R=rangelist.from_dataframe(df,"A","B",[],step_size=0.1)
+    print(R)
+    print(R.unique())
 
