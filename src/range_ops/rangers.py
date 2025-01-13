@@ -80,8 +80,7 @@ class rangelist(list):
         #TODO: check how += operator overloading compares with "+" op overload?
         for v in groupdict.values():
             if isinstance(v,(rangelist,list)):
-                for _v in v:
-                    ungrouped.append(_v)
+                ungrouped.extend(iter(v))
             elif isinstance(v,(intrange,floatrange)):
                 ungrouped.append(v)
         return rangelist(ungrouped)
