@@ -1,5 +1,6 @@
 from collections import namedtuple
-
+import pandas as pd
+from uuid import uuid4,UUID
 
 ## decorators
 # def _allow_for(*args,types=(int,),**kwargs):
@@ -16,7 +17,22 @@ from collections import namedtuple
 class rangelist(list):
 
     def __init__(self,*args,**kwargs):
-        self.__sort_key__ = None
+        """
+        Initializes a rangelist object.
+
+        Args:
+            __sort_key__ : callable
+            The `__sort_key__` attribute is used to order ranges.
+            This allows preferred items to be used when clipping unique ranges.
+            a functional call is expected
+
+            other *args and **kwargs are passed to the super() list init method
+
+        """
+        if "__sort_key__" in kwargs:
+            self.__sort_key__ = kwargs.pop("__sort_key__")
+        else:
+            self.__sort_key__ = None
         super().__init__(*args,**kwargs)
 
     def extent(self):
@@ -32,7 +48,7 @@ class rangelist(list):
 
     def __sub__(self,other):
         """for A - B, return A ranges not covered by B range"""
-        if isinstance(other,(intrange,floatrange)):#TODO - consider floatrange
+        if isinstance(other,(intrange,floatrange)):
             result=rangelist()
             for s in self:
                 new=s-other
@@ -75,6 +91,29 @@ class rangelist(list):
 
     @staticmethod
     def __ungroup__(groupdict):
+        """
+        Static method to ungroup a dictionary of ranges.
+
+        reverts the .groupdict() method result
+        intended for internal use
+
+        Args:
+            groupdict: A dictionary containing ranges grouped by keys.
+
+        Returns:
+            rangelist: A new rangelist object containing all the ungrouped ranges.
+
+        Examples:
+            >>> R = rangelist()
+            >>> R.append(floatrange(1,10,group=(1,)))
+            >>> R.append(floatrange(8,15,group=(1,)))
+            >>> R.append(floatrange(3,13,group=(2,)))
+            >>> print("R",R)
+            >>> groupdict = R.groupdict()
+            >>> print(groupdict)
+            >>> result = rangelist.__ungroup__(groupdict)
+            >>> print(result)
+        """
         ungrouped=[]
         # used a plain list because we plan to overload __add__ in rangelist
         #TODO: check how += operator overloading compares with "+" op overload?
@@ -85,8 +124,8 @@ class rangelist(list):
                 ungrouped.append(v)
         return rangelist(ungrouped)
 
-    def __group_attributes__(self):
-        regrouped = [r.__group_attributes__() for r in self]
+    def __group_attributes__(self,with_uuid=False):
+        regrouped = [r.__group_attributes__(with_uuid=with_uuid) for r in self]
         return rangelist(regrouped)
 
     def __ungroup_attributes__(self):
@@ -104,8 +143,8 @@ class rangelist(list):
 
     def duplicates(self):
         '''excluded duplicate portions'''
-        U = self.unique().__group_attributes__()
-        S = self.__group_attributes__()
+        U = self.unique().__group_attributes__(with_uuid=True)
+        S = self.__group_attributes__(with_uuid=True)
         return (S - U).__ungroup_attributes__()
 
     def __unique__(self,inputRangeList,strict=False):
@@ -187,13 +226,19 @@ class intrange(object):
 
     """
 
-    def __init__(self,min_val,max_val,closed=True,group=(1,),attributes={}):
+    def __init__(self, min_val, max_val, closed=True, group=(1,), attributes=None, uuid=uuid4()):
         self._start=int(min(min_val,max_val))
         self._end=int(max(min_val,max_val))
         self._closed=1 if closed else 0
         self._open = 1-self._closed
         self._group=group
+        if attributes is None:
+            attributes = {}
         self._attributes=attributes
+        self._uuid = uuid or uuid4()
+        assert isinstance(self._uuid,UUID), "attribute 'uuid' must be a UUID instance"
+        assert "group" not in attributes,"reserved keyword 'group' should not be in attributes"
+        assert "uuid" not in attributes,"reserved keyword 'uuid' should not be in attributes"
 
     def __repr__(self):
         '''string representing constructor for the object'''
@@ -245,8 +290,7 @@ class intrange(object):
     def __iter__(self):
         # enable iteration over your object
         # (assume step size is 1)
-        for i in range(self._start, self._end+self._closed):
-            yield i
+        yield from range(self._start, self._end+self._closed)
 
     def __len__(self):
         # return length (assuming step size of 1)
@@ -268,25 +312,32 @@ class intrange(object):
 
     def __validranges__(self,*args):
         '''test that inputs are valid int or float ranges'''
-        same=all(isinstance(obj,(type(self))) for obj in (self,*args))
+        if isinstance(self,intrange):
+            numeric=int
+        elif isinstance(self,floatrange):
+            numeric=float
+        same=all(isinstance(obj,(type(self),numeric)) for obj in (self,*args))
         if same:
             return True
         else:
-            raise NotImplementedError
+            raise TypeError
 
-    def __group_attributes__(self):
+    def __group_attributes__(self,with_uuid=False):
         ''''''
-        D = self._attributes
-        # assert "group" not in D
+        D = self._attributes.copy()
+        if with_uuid:
+            D['uuid'] = self._uuid
         D['group'] = self._group
         group = namedtuple("attributes",D.keys())(**D)
-        return type(self)(self._start,self._end,group=group)
+        return type(self)(self._start,self._end,group=group,uuid=self._uuid)
 
     def __ungroup_attributes__(self):
         ''''''
         D = dict(self._group._asdict())
         group  = D.pop("group")
-        return type(self)(self._start,self._end,group=group,attributes=D)
+        if "uuid" in D:
+            uuid = D.pop("uuid")
+        return type(self)(self._start,self._end,group=group,attributes=D,uuid=self._uuid)
 
     ## operator overloading
     def __lt__(self,other):
@@ -331,7 +382,7 @@ class intrange(object):
     def __sub__(self,other):
         '''difference of self from other'''
         if isinstance(other,(int,float)):
-            return type(self)(self._start-other,self._end-other)
+            return type(self)(self._start-other,self._end-other,uuid=self._uuid)
         elif isinstance(other,rangelist):
             current = self
             for elem in other:
@@ -346,43 +397,41 @@ class intrange(object):
                 starts_in = other._start in self
                 ends_in  = other._end in self
                 result=rangelist()
-                if starts_in:
-                    if not start_equal:
-                        #create a closed intrange
-                        if isinstance(self,floatrange):
-                            new = floatrange(self._start,other._start,
-                                             step_size=self.step_size,
-                                             group=self._group,
-                                             attributes=self._attributes
-                                             )
-                            result.append(new)
-                        elif isinstance(self,intrange):
-                            new = intrange(self._start,other._start-1,
-                                            closed=True,
-                                            group=self._group,
-                                            attributes=self._attributes
-                                            )
-                            result.append(new)
-                if ends_in:
-                    # create a intrange,
-                    # but consider that other might not be closed.
-                    if not end_equal:
-                        if isinstance(self,floatrange):
-                            new = floatrange(other._end+other._closed,
-                                             self._end,
-                                             step_size=self.step_size,
-                                             group=self._group,
-                                             attributes=self._attributes
-                                             )
-                            result.append(new)
-                        elif isinstance(self,intrange):
-                            new = intrange(other._end+other._closed,
-                                            self._end,
-                                            closed=self._closed,
-                                            group=self._group,
-                                            attributes=self._attributes
-                                            )
-                            result.append(new)
+                if starts_in and not start_equal:
+                    if isinstance(self,floatrange):
+                        new = floatrange(self._start,other._start,
+                                          step_size=self.step_size,
+                                          group=self._group,
+                                          attributes=self._attributes,
+                                          uuid=self._uuid
+                                         )
+                    elif isinstance(self,intrange):
+                        new = intrange(self._start,other._start-1,
+                                        closed=True,
+                                        group=self._group,
+                                        attributes=self._attributes,
+                                        uuid=self._uuid
+                                        )
+
+                    result.append(new)
+                if ends_in and not end_equal:
+                    if isinstance(self,floatrange):
+                        new = floatrange(other._end+other._closed,
+                                        self._end,
+                                        step_size=self.step_size,
+                                        group=self._group,
+                                        attributes=self._attributes,
+                                        uuid=self._uuid
+                                        )
+                    elif isinstance(self,intrange):
+                        new = intrange(other._end+other._closed,
+                                        self._end,
+                                        closed=self._closed,
+                                        group=self._group,
+                                        attributes=self._attributes,
+                                        uuid=self._uuid
+                                        )
+                    result.append(new)
                 return result
             else:
                 return rangelist((self,))
@@ -394,19 +443,22 @@ class intrange(object):
                 return floatrange(self._start+other,self._end+other,
                               step_size=self.step_size,
                               group=self._group,
-                              attributes=self._attributes)
+                              attributes=self._attributes,
+                              uuid=self._uuid)
             elif isinstance(self,intrange):
                 return intrange(self._start+other,self._end+other,
                               closed=self._closed,
                               group=self._group,
-                              attributes=self._attributes)
+                              attributes=self._attributes,
+                              uuid=self._uuid)
         elif self.__validranges__(other):
             result=rangelist()
             adjacent=(self.__adjoins__(other) or other.__adjoins__(self))
             if other in self or self in other or adjacent:
                 result.append(type(self)(min(self._start,other._start),
                                          max(self._end,other._end),
-                                         group=self._group
+                                         group=self._group,
+                                         uuid=self._uuid
                                          )
                                 )
                 #TODO: how should attributes be handled?
@@ -421,11 +473,9 @@ class intrange(object):
         if self.__validranges__(other):
             if other in self or self in other:
                 newObj=type(self)
-                intersection =  newObj(max(self._start,other._start),
-                                            min(self._end,other._end)
-                                            )
-
-                return intersection
+                return newObj(max(self._start, other._start),
+                              min(self._end, other._end),
+                              )
             else:
                 if isinstance(self,floatrange):
                     return floatrange(0,0)
@@ -436,20 +486,22 @@ class intrange(object):
     def __floordiv__(self,other):
         '''remainder of self not intersecting other'''
         if isinstance(other,int):
-            if other in self:
-                return self - type(self)(other,other)
+            # cut the range at the point
+            return self - type(self)(other,other)
+        elif isinstance(other,float):
+            # this will raise a type error if self is an intrange...
+            return self - floatrange(other,other)
         if self.__validranges__(other):
-            if other in self or self in other:
-                intN = self*other
-                return self-intN
-            else:
+            if other not in self and self not in other:
                 return rangelist([self])
+            intN = self*other
+            return self-intN
 
     ## outputs
     def _astuple(self):
-        names=("start","end",)+tuple(self._attributes.keys())
+        names=("start","end","uuid")+tuple(self._attributes.keys())
         rangeTuple=namedtuple('rangeTuple',names)
-        return rangeTuple(self._start,self._end,*self._attributes.values())
+        return rangeTuple(self._start,self._end,self._uuid,*self._attributes.values())
 
 ##
 class floatrange(intrange):
@@ -470,16 +522,18 @@ class floatrange(intrange):
     :param attributes: any other properties associated with the range
     :type attributes: dict
     """
-
-    def __init__(self, min_val, max_val, step_size=0.1, group=(1,), attributes=None):
-        if attributes is None:
-            attributes = {}
+    def __init__(self,min_val,max_val,step_size=0.1,group=(1,),attributes={},uuid=None):
         self._start=float(min(min_val,max_val))
         self._end=float(max(min_val,max_val))
         self.step_size=step_size
         self._closed=0
         self._group=group
         self._attributes=attributes
+        self._uuid = uuid or uuid4()
+        assert isinstance(self._uuid,UUID), "attribute 'uuid' must be a UUID instance"
+        assert "group" not in attributes,"reserved keyword 'group' should not be in attributes"
+        assert "uuid" not in attributes,"reserved keyword 'uuid' should not be in attributes"
+
 
     def __len__(self):
         return (self._end-self._start)//self.step_size
@@ -569,6 +623,15 @@ if __name__ == "__main__":
 
     XY = rangelist((X1,X2,X3,Y1))
 
+    print("XY list:")
+    print(*XY,sep="\n")
+    print("unique:")
+    print(*XY.unique(),sep="\n")
+    print("duplicates:")
+    print(*(repr(xy) for xy in XY),sep="\n")
+
+    for elem in XY:
+        elem._attributes.pop("date")
     print("XY list:")
     print(*XY,sep="\n")
     print("unique:")
