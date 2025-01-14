@@ -1,5 +1,4 @@
 from collections import namedtuple
-import pandas as pd
 from uuid import uuid4,UUID
 
 ## decorators
@@ -75,6 +74,12 @@ class rangelist(list):
                  f"and {type(other)}"
                  )
             raise NotImplementedError(msg)
+
+    def __floordiv__(self, other):
+        """cut elements of self which cross other"""
+        if isinstance(other, (int, float)):
+            # cut the range at the point
+            return type(self)(sum((r // other for r in self), start=type(self)()))
 
     # def __add__(self,other):
     #     pass
@@ -190,7 +195,15 @@ class rangelist(list):
 
     def disect(self):
         """slice up ranges where portions overlap"""
-        raise NotImplementedError("disect method not implemented")
+        gd = self.groupdict()
+        for grp in gd:
+            new_ranges = rangelist(gd[grp])
+            cut_points = set([r._start for r in new_ranges] + [r._end for r in new_ranges])
+            while cut_points:
+                cut = cut_points.pop()
+                new_ranges = new_ranges // cut
+            gd[grp] = new_ranges
+        return self.__ungroup__(gd)
 
     def to_dataframe(self):
         return pd.DataFrame((x._astuple() for x in self))
@@ -645,6 +658,4 @@ if __name__ == "__main__":
 
     R=rangelist.from_dataframe(df,"A","B",[],step_size=0.1)
     print(R)
-    print(R.unique())
-
-
+    print(floatrange(2, 4, group=(1,)) // 3)
