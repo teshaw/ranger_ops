@@ -470,7 +470,10 @@ class floatrange(intrange):
     :param attributes: any other properties associated with the range
     :type attributes: dict
     """
-    def __init__(self,min_val,max_val,step_size=0.1,group=(1,),attributes={}):
+
+    def __init__(self, min_val, max_val, step_size=0.1, group=(1,), attributes=None):
+        if attributes is None:
+            attributes = {}
         self._start=float(min(min_val,max_val))
         self._end=float(max(min_val,max_val))
         self.step_size=step_size
