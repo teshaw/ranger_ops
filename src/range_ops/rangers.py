@@ -1,4 +1,5 @@
 from collections import namedtuple
+import pandas as pd
 from uuid import uuid4,UUID
 
 ## decorators
