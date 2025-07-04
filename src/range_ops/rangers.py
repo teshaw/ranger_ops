@@ -130,8 +130,8 @@ class rangelist(list):
                 ungrouped.append(v)
         return rangelist(ungrouped)
 
-    def __group_attributes__(self,with_uuid=False):
-        regrouped = [r.__group_attributes__(with_uuid=with_uuid) for r in self]
+    def __group_attributes__(self,with_uuid=False,keys=None):
+        regrouped = [r.__group_attributes__(with_uuid=with_uuid,keys=keys) for r in self]
         return rangelist(regrouped)
 
     def __ungroup_attributes__(self):
@@ -210,10 +210,14 @@ class rangelist(list):
         return pd.DataFrame((x._astuple() for x in self))
 
     @staticmethod
-    def from_dataframe(df,start,end,groupby,step_size=0.1):
+    def from_dataframe(df,start,end,groupby,attributes=None,step_size=0.1):
         result = rangelist()
         for rng,row in df.set_index([start,end]).iterrows():
-            result.append(floatrange(*rng,step_size,group=tuple(row[groupby])))
+            if attributes:
+                attrib = dict(row[attributes])
+            else:
+                attrib={}
+            result.append(floatrange(*rng,step_size,group=tuple(row[groupby]),attributes=attrib))
         return result
 
 class intrange(object):
@@ -336,14 +340,19 @@ class intrange(object):
         else:
             raise TypeError
 
-    def __group_attributes__(self,with_uuid=False):
+    def __group_attributes__(self,keys=None,with_uuid=False):
         ''''''
-        D = self._attributes.copy()
+        if keys:
+            GroupBy = {k:v for k,v in self._attributes.items() if k in keys}
+            LeftOverAttributes = {k:v for k,v in self._attributes.items() if k not in keys}
+        else:
+            GroupBy = self._attributes.copy()
+            LeftOverAttributes={}
         if with_uuid:
-            D['uuid'] = self._uuid
-        D['group'] = self._group
-        group = namedtuple("attributes",D.keys())(**D)
-        return type(self)(self._start,self._end,group=group,uuid=self._uuid)
+            GroupBy['uuid'] = self._uuid
+        GroupBy['group'] = self._group
+        group = namedtuple("attributes",GroupBy.keys())(**GroupBy)
+        return type(self)(self._start,self._end,group=group,uuid=self._uuid,attributes=LeftOverAttributes)
 
     def __ungroup_attributes__(self):
         ''''''
@@ -351,6 +360,7 @@ class intrange(object):
         group  = D.pop("group")
         if "uuid" in D:
             uuid = D.pop("uuid")
+        D.update(self._attributes)
         return type(self)(self._start,self._end,group=group,attributes=D,uuid=self._uuid)
 
     ## operator overloading
